@@ -1,6 +1,6 @@
 /*
  * BurnCam program.
- * For burn cam projet V3. Electronic afghan camera box.
+ * For burn cam project V3. Electronic afghan camera box.
  *
  * Florent Gales 2015
  * rataflo@free.fr / More info : iloveto.fail
@@ -11,6 +11,7 @@
  *
  * Lux sensor : TLS 2561.
  * LCD display.
+ * Neo pixel Stick from Adafruit.
  * 
  * Max speed with servo 9g = 1/4s
  */
@@ -21,12 +22,13 @@
 #include <math.h>
 #include <LiquidCrystal.h>
 #include <Button.h>
-
+#include <Adafruit_NeoPixel.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_TSL2561_U.h>
 #include <Servo.h>
 #include "BurnCam.h"
 
+Adafruit_NeoPixel pixels = Adafruit_NeoPixel(8, PIN_LED, NEO_GRB + NEO_KHZ800);
 Adafruit_TSL2561_Unified luxMeter = Adafruit_TSL2561_Unified(TSL2561_ADDR_FLOAT, 12345);
 LiquidCrystal lcd(6, 5, 4, 3, 2, 1);//LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
 Servo obturator;
@@ -43,19 +45,20 @@ unsigned long switchInfos = 0; //Each 2second switch infos displayed (focal -> i
 
 int triggerState = 0;
 int button1State = 0;
+boolean redLight = false; // sate of red light (true = on, false = off)
 
 void setup()
 {
 
   //Serial.begin(9600);///!\ NO DEBUG. LCD USE PIN 2 (RX).
   
-  //RGB LED
-  pinMode(PIN_GREEN_LED, OUTPUT);
-  pinMode(PIN_RED_LED, OUTPUT);
-  pinMode(PIN_BLUE_LED, OUTPUT);
-  digitalWrite(PIN_GREEN_LED, 0); 
-  digitalWrite(PIN_RED_LED, 0);
-  digitalWrite(PIN_BLUE_LED, 255);
+  //Neo pixel leds
+  pixels.begin();
+  //make sure led are off
+  for(int i=0;i<8;i++){
+   pixels.setPixelColor(i, pixels.Color(0,0,0)); 
+   pixels.show();
+  }
   
   //buttons
   pinMode(PIN_TRIGGER, INPUT);
@@ -63,6 +66,7 @@ void setup()
 
   //LCD
   lcd.begin(16, 2);
+  
   
   //Servo
   //Obturator init
@@ -136,23 +140,25 @@ void loop()
   // 0 => Take shot
   // 1 => open obturator
   //   10 => close obturator
-  // 2 => Timer
-  //   21 => 10'
-  //   22 => 30'
-  //   23 => Exit 
-  // 3 => Print
-  //   31 => GO xtime ylight
-  //   32 => Time
-  //     321 => Exposure time choices
-  //   33 => light
-  //     331 => Light choices
-  //   34 => Exit
-  // 4 => Setup
-  //   41 => Focal
-  //     411 => Cycle through focal choices
-  //   42 => ISO
-  //     421 => Cycle through iso choices
-  //   43 => Exit
+  // 2 => Red light on
+  //   21 => Red light off
+  // 3 => Timer
+  //   31 => 10'
+  //   32 => 30'
+  //   33 => Exit 
+  // 4 => Print
+  //   41 => GO xtime ylight
+  //   42 => Time
+  //     421 => Exposure time choices
+  //   43 => light
+  //     431 => Light choices
+  //   44 => Exit
+  // 5 => Setup
+  //   51 => Focal
+  //     511 => Cycle through focal choices
+  //   52 => ISO
+  //     521 => Cycle through iso choices
+  //   53 => Exit
   //  
 */
 void showMenu(int menu){
@@ -208,58 +214,84 @@ void showMenu(int menu){
       closeObturator();
       showMenu(1);
  }
- //2 :Timer
- else if(menu == 2){
+ //2 : Red light on
+  if(menu == 2){
       //show under menu
-      lcd.print(">Timer          ");
+      if(!redLight){
+        lcd.print(">Red light on");
+      }else{
+        lcd.print(">Red light off");
+      }
       if(waitForButton() == PIN_TRIGGER){
-        showMenu(21);
-      }else {
+        if(!redLight){ //Switch red light on
+          for(int i=0;i<8;i++){
+            pixels.setPixelColor(i, pixels.Color(200, 0, 0));
+          }
+          redLight = true;
+        }else{  //Switch red light on
+          for(int i=0;i<8;i++){
+            pixels.setPixelColor(i, pixels.Color(0, 0, 0));
+          }
+          redLight = false;
+        }
+        pixels.show();
+        showMenu(2);
+      }else{
         showMenu(3);
       }
  }
- //3 : Timer length
- else if(menu == 21){
-      //show under menu
-      lcd.print(">10s            ");
-      if(waitForButton() == PIN_TRIGGER){
-        showCountdown(10);
-        takeShot();
-        showMenu(21);
-    }else {
-        showMenu(22);
-    }
- }
- else if(menu == 22){
-      //show under menu
-      lcd.print(">30s            ");
-      if(waitForButton() == PIN_TRIGGER){
-        showCountdown(30);
-        takeShot();
-        showMenu(22);
-      }else {
-        showMenu(23);
-      }
- }
- else if(menu == 23){
-      lcd.print(">Exit           ");
-      if(waitForButton() == PIN_TRIGGER){
-        showMenu(2);
-      }else {
-        showMenu(21);
-      }
- }
- //3 : Print
+ //3 :Timer
  else if(menu == 3){
-      lcd.print(">Print          ");
+      //show under menu
+      lcd.print(">Timer          ");
       if(waitForButton() == PIN_TRIGGER){
         showMenu(31);
       }else {
         showMenu(4);
       }
  }
- //31 : Expose
+ //31 : Timer length
  else if(menu == 31){
+      //show under menu
+      lcd.print(">10s            ");
+      if(waitForButton() == PIN_TRIGGER){
+        showCountdown(10);
+        takeShot();
+        showMenu(31);
+    }else {
+        showMenu(32);
+    }
+ }
+ else if(menu == 32){
+      //show under menu
+      lcd.print(">30s            ");
+      if(waitForButton() == PIN_TRIGGER){
+        showCountdown(30);
+        takeShot();
+        showMenu(32);
+      }else {
+        showMenu(33);
+      }
+ }
+ else if(menu == 33){
+      lcd.print(">Exit           ");
+      if(waitForButton() == PIN_TRIGGER){
+        showMenu(3);
+      }else {
+        showMenu(31);
+      }
+ }
+ //4 : Print
+ else if(menu == 4){
+      lcd.print(">Print          ");
+      if(waitForButton() == PIN_TRIGGER){
+        showMenu(41);
+      }else {
+        showMenu(5);
+      }
+ }
+ //41 : Expose
+ else if(menu == 41){
       lcd.print(">Go ");
       lcd.print(timesPrint[printTime]);
       lcd.print("s ");
@@ -267,48 +299,46 @@ void showMenu(int menu){
       if(waitForButton() == PIN_TRIGGER){
         
         //Sitch rgb led on.
-        if(printLight == 0){ //Neutral
-          digitalWrite(PIN_RED_LED, light_neutral[0]);
-          digitalWrite(PIN_GREEN_LED, light_neutral[1]); 
-          digitalWrite(PIN_BLUE_LED, light_neutral[2]);
-        }else if(printLight == 2){ //warm
-          digitalWrite(PIN_RED_LED, light_warm[0]);
-          digitalWrite(PIN_GREEN_LED, light_warm[1]); 
-          digitalWrite(PIN_BLUE_LED, light_warm[2]);
-        }else if(printLight == 3){ //cold
-          digitalWrite(PIN_RED_LED, light_cold[0]);
-          digitalWrite(PIN_GREEN_LED, light_cold[1]); 
-          digitalWrite(PIN_BLUE_LED, light_cold[2]);
+        for(int i=0;i<8;i++){
+          if(printLight == 0){ //Neutral
+            pixels.setPixelColor(i, pixels.Color(light_neutral[0],light_neutral[1],light_neutral[2]));
+          }else if(printLight == 1){ //warm
+            pixels.setPixelColor(i, pixels.Color(light_warm[0],light_warm[1],light_warm[2]));
+          }else if(printLight == 2){ //cold
+            pixels.setPixelColor(i, pixels.Color(light_cold[0],light_cold[1],light_cold[2]));
+          }
         }
-        
+        pixels.show();
+        redLight = false;
         showCountdown(timesPrint[printTime]);
         
         //switch off
-        digitalWrite(PIN_RED_LED, 0);
-        digitalWrite(PIN_GREEN_LED, 0); 
-        digitalWrite(PIN_BLUE_LED, 0);
+        for(int i=0;i<8;i++){
+          pixels.setPixelColor(i, pixels.Color(0, 0, 0));
+        }
+        pixels.show();
         
         //say it's done.
         lcd.setCursor(0, 1);
         lcd.print("Done!           ");
         delay(1000);
-        showMenu(31);
+        showMenu(41);
         
       }else{
-        showMenu(32);
+        showMenu(42);
       }
  }
- //32 : Print time
- else if(menu == 32){
+ //42 : Print time
+ else if(menu == 42){
       lcd.print(">Time");
       if(waitForButton() == PIN_TRIGGER){
-        showMenu(321);
+        showMenu(421);
       }else {
-        showMenu(33);
+        showMenu(43);
       }
  }
- //321 : Exposure time choice
- else if(menu == 321){
+ //421 : Exposure time choice
+ else if(menu == 421){
       int menuChoice = 0;
       lcd.print(">");
       lcd.print(timesPrint[menuChoice]);
@@ -333,20 +363,20 @@ void showMenu(int menu){
         printTime = menuChoice;
         EEPROM.write(PRINT_TIME_ADDR, printTime);
       }
-      showMenu(32);
+      showMenu(42);
  }
- //33 : Exposure time
- else if(menu == 33){
+ //43 : Exposure time
+ else if(menu == 43){
       //show under menu
       lcd.print(">Light");
       if(waitForButton() == PIN_TRIGGER){
-        showMenu(331);
+        showMenu(431);
       }else {
-        showMenu(34);
+        showMenu(44);
       }
  }
- //331 : Choices type of light
- else if(menu == 331){
+ //431 : Choices type of light
+ else if(menu == 431){
       //show under menu
       int menuChoice = 0;
       lcd.print(">");
@@ -370,40 +400,40 @@ void showMenu(int menu){
         printLight = menuChoice;
         EEPROM.write(PRINT_LIGHT_ADDR, printLight);
       }
-      showMenu(33);
+      showMenu(43);
  }
- //34 : Exit
- else if(menu == 34){
+ //44 : Exit
+ else if(menu == 44){
       //show under menu
       lcd.print(">Exit           ");
       if(waitForButton() == PIN_TRIGGER){
-        showMenu(3);
+        showMenu(4);
       }else {
-        showMenu(31);
+        showMenu(41);
       }
  }
- //4 : Setup
- else if(menu == 4){
+ //5 : Setup
+ else if(menu == 5){
       //show under menu
       lcd.print(">Setup          ");
       if(waitForButton() == PIN_TRIGGER){
-        showMenu(41);
+        showMenu(51);
       }else {
         return;
       }
  }
- //41 : Focal
- else if(menu == 41){
+ //51 : Focal
+ else if(menu == 51){
       //show under menu
       lcd.print(">Focal          ");
       if(waitForButton() == PIN_TRIGGER){
-        showMenu(411);
+        showMenu(511);
       }else {
-        showMenu(42);
+        showMenu(52);
       }
  }
- //411 : Apertures choices
- else if(menu == 411){
+ //511 : Apertures choices
+ else if(menu == 511){
       //show under menu
       int menuChoice = 0;
       lcd.print(">");
@@ -432,20 +462,20 @@ void showMenu(int menu){
         apertureIndex = menuChoice;
         EEPROM.write(APERTURE_MEMORY_ADDR, apertureIndex);
       }
-      showMenu(41);
+      showMenu(51);
  }
- //42 : ISO
- else if(menu == 42){
+ //52 : ISO
+ else if(menu == 52){
       //show under menu
       lcd.print(">ISO            ");
       if(waitForButton() == PIN_TRIGGER){
-        showMenu(421);
+        showMenu(521);
       }else {
-        showMenu(43);
+        showMenu(53);
       }
  }
- //421 : Iso choice
- else if(menu == 421){
+ //521 : Iso choice
+ else if(menu == 521){
       //show under menu
       int menuChoice = 0;
       lcd.print(">");
@@ -474,16 +504,16 @@ void showMenu(int menu){
         isoIndex = menuChoice;
         EEPROM.write(ISO_MEMORY_ADDR, isoIndex);
       }
-      showMenu(42);
+      showMenu(52);
  }
- //43 : Exit
- else if(menu == 43){
+ //53 : Exit
+ else if(menu == 53){
       //show under menu
       lcd.print(">Exit          ");
       if(waitForButton() == PIN_TRIGGER){
-        showMenu(4);
+        showMenu(5);
       }else {
-        showMenu(41);
+        showMenu(51);
       }
  }
 }

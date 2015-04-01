@@ -8,13 +8,10 @@
 #define length(array)  (sizeof(array) / sizeof(array[0]))
 
 #define PIN_OBTURATOR                7
+#define PIN_LED                      8
 
 #define PIN_TRIGGER                  13
 #define PIN_BUTTON1                  12
-
-#define PIN_BLUE_LED                 8
-#define PIN_RED_LED                  9
-#define PIN_GREEN_LED                11
 
 // EEPROM Memory addresses
 #define APERTURE_MEMORY_ADDR         0
