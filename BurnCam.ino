@@ -24,12 +24,13 @@
 #include <Button.h>
 #include <Adafruit_NeoPixel.h>
 #include <Adafruit_Sensor.h>
-#include <Adafruit_TSL2561_U.h>
+#include <Adafruit_TSL2591.h>
 #include <Servo.h>
 #include "BurnCam.h"
 
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(8, PIN_LED, NEO_GRB + NEO_KHZ800);
-Adafruit_TSL2561_Unified luxMeter = Adafruit_TSL2561_Unified(TSL2561_ADDR_FLOAT, 12345);
+//Adafruit_TSL2591 luxMeter = Adafruit_TSL2591(TSL2561_ADDR_FLOAT, 12345);
+Adafruit_TSL2591 luxMeter = Adafruit_TSL2591(2591);
 LiquidCrystal lcd(6, 5, 4, 3, 2, 1);//LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
 Servo obturator;
 
@@ -73,24 +74,27 @@ void setup()
   obturator.attach(PIN_OBTURATOR);
   obturator.write(0);
   stateObturator = 0;
-  delay(200);
+  delay(500);
   obturator.detach();//detach for noise.
   
   /* Initialise the sensor */
   if(!luxMeter.begin())
   {
-    lcd.print("No TSL2561!");
+    lcd.print("No TSL2591!");
   }
   
-  /* You can also manually set the gain or enable auto-gain support */
-  // luxMeter.setGain(TSL2561_GAIN_1X);      /* No gain ... use in bright light to avoid sensor saturation */
-  //luxMeter.setGain(TSL2561_GAIN_16X);     /* 16x gain ... use in low light to boost sensitivity */
-  luxMeter.enableAutoRange(true);            /* Auto-gain ... switches automatically between 1x and 16x */
+   //tsl.setGain(TSL2591_GAIN_LOW);    // 1x gain (bright light)
+  luxMeter.setGain(TSL2591_GAIN_MED);      // 25x gain
+  //tsl.setGain(TSL2591_GAIN_HIGH);   // 428x gain
   
-  /* Changing the integration time gives you better sensor resolution (402ms = 16-bit data) */
-  luxMeter.setIntegrationTime(TSL2561_INTEGRATIONTIME_13MS);      /* fast but low resolution */
-  //luxMeter.setIntegrationTime(TSL2561_INTEGRATIONTIME_101MS);  /* medium resolution and speed   */
-  //luxMeter.setIntegrationTime(TSL2561_INTEGRATIONTIME_402MS);  /* 16-bit data but slowest conversions */
+  // Changing the integration time gives you a longer time over which to sense light
+  // longer timelines are slower, but are good in very low light situtations!
+  luxMeter.setTiming(TSL2591_INTEGRATIONTIME_100MS);  // shortest integration time (bright light)
+  //tsl.setTiming(TSL2591_INTEGRATIONTIME_200MS);
+  //tsl.setTiming(TSL2591_INTEGRATIONTIME_300MS);
+  //tsl.setTiming(TSL2591_INTEGRATIONTIME_400MS);
+  //tsl.setTiming(TSL2591_INTEGRATIONTIME_500MS);
+  //tsl.setTiming(TSL2591_INTEGRATIONTIME_600MS);  // longest integration time (dim light)
   
   //Parameter values stored in EEPROM
   loadEepromValues();
@@ -118,26 +122,13 @@ void setup()
 void loop()
 {
   calcExpTimeAndShowInfos(NULL, NULL);
-  lcd.setCursor(0, 1);
-  lcd.print(">Take shot      ");
-  
-  //button management
-  triggerState = digitalRead(PIN_TRIGGER);
-  button1State = digitalRead(PIN_BUTTON1);
-  
-  //trigger button.
-  if (triggerState == HIGH) {     
-     takeShot();
-  }
-  //button 1 trigger
-  if (button1State == HIGH) {     
-     showMenu(1);
-  } 
+ 
+  showMenu(99);
 }
 
 
 /* Menu
-  // 0 => Take shot
+  // 99 => Take shot
   // 1 => open obturator
   //   10 => close obturator
   // 2 => Red light on
@@ -167,8 +158,91 @@ void showMenu(int menu){
   
   lcd.setCursor(0, 1);
   
+  //99 : Take shot
+  if(menu == 99){
+      //show under menu
+      lcd.print(">Take shot      ");
+      //button management
+      triggerState = digitalRead(PIN_TRIGGER);
+      button1State = digitalRead(PIN_BUTTON1);
+      while(triggerState != HIGH && button1State != HIGH){ //non blocking loop.
+        
+        calcExpTimeAndShowInfos(NULL, NULL);
+        delay(debounceTime);
+        triggerState = digitalRead(PIN_TRIGGER);
+        button1State = digitalRead(PIN_BUTTON1);
+      }
+      //trigger button.
+      if (triggerState == HIGH) {     
+         showMenu(101);
+      }
+      //button 1 trigger
+      if (button1State == HIGH) {     
+         showMenu(1);
+      } 
+  }
+  //101 : auto
+  else if(menu == 101){
+      //show under menu
+      lcd.print(">Auto           ");
+      if(waitForButton() == PIN_TRIGGER){
+        takeShot(NULL);
+        showMenu(99);
+      }else{
+        showMenu(102);
+      }
+  }
+  //101 : auto
+  else if(menu == 102){
+      //show under menu
+      lcd.print(">Manual          ");
+      if(waitForButton() == PIN_TRIGGER){
+        showMenu(121);
+      }else{
+        showMenu(103);
+      }
+  }
+  //102 : manual choice
+  else if(menu == 121){
+      //show under menu
+        int menuChoice = 0;
+        lcd.print(">");
+        lcd.print(shutterSpeedTexts[menuChoice]);
+        lcd.print("    ");
+        while(waitForButton() == PIN_BUTTON1){
+          if(menuChoice == length(shutterSpeeds)){
+            menuChoice = 0;
+          }else{
+            menuChoice++;
+          }
+          lcd.setCursor(0, 1);
+          if(menuChoice < length(shutterSpeeds)){
+            lcd.print(">");
+            lcd.print(shutterSpeedTexts[menuChoice]);
+            lcd.print("    ");
+          }else{
+            lcd.print(">Exit");
+          }
+        }
+        //parameter change
+        if(menuChoice < length(shutterSpeeds)){
+          takeShot(shutterSpeeds[menuChoice]);
+          showMenu(99);
+        }else{
+          showMenu(102);
+        }
+        
+  }
+  else if(menu == 103){
+      lcd.print(">Exit           ");
+      if(waitForButton() == PIN_TRIGGER){
+        showMenu(99);
+      }else {
+        showMenu(101);
+      }
+  }
   //1 :Close obturator
-  if(menu == 1){
+  else if(menu == 1){
       //show under menu
       lcd.print(">Open obturator");
       if(waitForButton() == PIN_TRIGGER){
@@ -212,7 +286,7 @@ void showMenu(int menu){
       }
       
       closeObturator();
-      showMenu(1);
+      showMenu(100); //return to menu take shot
  }
  //2 : Red light on
   if(menu == 2){
@@ -256,7 +330,7 @@ void showMenu(int menu){
       lcd.print(">10s            ");
       if(waitForButton() == PIN_TRIGGER){
         showCountdown(10);
-        takeShot();
+        takeShot(NULL);
         showMenu(31);
     }else {
         showMenu(32);
@@ -267,7 +341,7 @@ void showMenu(int menu){
       lcd.print(">30s            ");
       if(waitForButton() == PIN_TRIGGER){
         showCountdown(30);
-        takeShot();
+        takeShot(NULL);
         showMenu(32);
       }else {
         showMenu(33);
@@ -322,7 +396,7 @@ void showMenu(int menu){
         lcd.setCursor(0, 1);
         lcd.print("Done!           ");
         delay(1000);
-        showMenu(41);
+        showMenu(4);
         
       }else{
         showMenu(42);
@@ -563,15 +637,18 @@ void closeObturator(){
 /*
 * Take shot.
 */
-void takeShot(){
+void takeShot(float nbSecond){
   
   int elapsedSecond = 0;
   
-  //Calculate exposition time with best quality for lux
-  luxMeter.setIntegrationTime(TSL2561_INTEGRATIONTIME_402MS);
-  calcExpTimeAndShowInfos(NULL, NULL);
-  luxMeter.setIntegrationTime(TSL2561_INTEGRATIONTIME_13MS);
+  exposureTimeInSeconds = nbSecond != NULL ? nbSecond : NULL;
   
+  //Calculate exposition time with best quality for lux
+  if(exposureTimeInSeconds == NULL){
+    //luxMeter.setIntegrationTime(TSL2561_INTEGRATIONTIME_402MS);
+    calcExpTimeAndShowInfos(NULL, NULL);
+    //luxMeter.setIntegrationTime(TSL2561_INTEGRATIONTIME_13MS);
+  }
   //Inclusion du temps d'ouverture/fermeture.
   exposureTimeInSeconds -=  0.45;
   
@@ -591,6 +668,20 @@ void takeShot(){
   obturator.detach();  
 }
 
+float getLuxValue()
+{
+//  sensors_event_t event;
+//  luxMeter.getEvent(&event);
+//  float lux = event.light;
+  
+  uint32_t lum = luxMeter.getFullLuminosity();
+  uint16_t ir, full;
+  ir = lum >> 16;
+  full = lum & 0xFFFF;
+  
+  return luxMeter.calculateLux(full, ir);
+}
+
 /*
 * Calc exposure time, display info on lcd.
 * param focal & iso : if not NULL use it for calculation. 
@@ -599,10 +690,8 @@ void calcExpTimeAndShowInfos(int focal, int iso)
 {
   lcd.setCursor(0, 0);
   
-  sensors_event_t event;
-  luxMeter.getEvent(&event);
   float aperture = focal != NULL ? apertures[focal] : apertures[apertureIndex]; 
-  float luxValue = event.light;
+  float luxValue = getLuxValue();
   int isoValue = iso != NULL ? isos[iso] : isos[isoIndex];
   int shutterSpeedIndex = 0;
   boolean isPositive;
@@ -612,9 +701,7 @@ void calcExpTimeAndShowInfos(int focal, int iso)
   // Problem : no light or too much light
   if (luxValue <= 0.0f) 
   {
-    lcd.print("Err light:");
-    lcd.print((int)event.light);
-    lcd.print("lux");
+    lcd.print("Err light!      ");
     exposureTimeInSeconds = 0;
     return;
   }
@@ -643,7 +730,7 @@ void calcExpTimeAndShowInfos(int focal, int iso)
   // Fractional time management, we find the nearest standard shutter speed linked to exposure time value
   else if (exposureTimeInSeconds <= 1.0f)
   {
-    float shortestSpeedGap = 1.0f;
+    float shortestSpeedGap = 0.5f;//previous 1.0f
     for (int index = 0; index < length(shutterSpeeds); index++)
     {
       float shutterSpeed = shutterSpeeds[index];

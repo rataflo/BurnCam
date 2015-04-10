@@ -35,17 +35,17 @@ const float apertures[] = { 1.2, 1.4, 1.8, 2, 2.8, 4.5, 5.6, 8, 11, 16, 22, 32 }
 const int isos[] = { 3, 5, 10, 25, 100, 200, 400, 800};
 
 // Available shutter speeds
-const float shutterSpeeds[] = { 1, 1/2.0, 1/4.0};
-const char* shutterSpeedTexts[] = { "1s", "1/2s", "1/4s" };
+const float shutterSpeeds[] = { 2, 1, 1/2.0, 1/4.0};
+const char* shutterSpeedTexts[] = { "2s", "1s", "1/2s", "1/4s" };
 
 //Light for print (RGB)
-const byte light_neutral[3] = { 255, 255, 255 };
-const byte light_warm[3] = { 255, 128, 0 };
-const byte light_cold[3] = { 0, 128, 255 };
-const char* lightTypes[ ] = { "Neutral         ", "Warm           ", "Cold            " };
+const byte light_neutral[3] = { 0, 50, 50};
+const byte light_warm[3] = { 0, 50, 0 };
+const byte light_cold[3] = { 0, 0, 50 };
+const char* lightTypes[ ] = { "Green&Blue      ", "Green           ", "Blue            " };
 
 //Times for print
-const byte timesPrint[] = {5, 7, 9, 11, 13, 15};
+const byte timesPrint[] = {1, 2, 3, 4, 5, 7, 9, 11, 13, 15};
 
 const byte debounceTime = 100; //debounce time for push button.
 
