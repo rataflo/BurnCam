@@ -19,6 +19,8 @@
 #define LIGHT_TYPE_MEMORY_ADDR       2
 #define PRINT_TIME_ADDR              3
 #define PRINT_LIGHT_ADDR             4
+#define LUX_METER_GAIN_ADDR          5
+#define LUX_METER_TIMING_ADDR        6
 
 // Light metering modes
 #define REFLECTED_METERING           0
@@ -43,6 +45,12 @@ const byte light_neutral[3] = { 0, 50, 50};
 const byte light_warm[3] = { 0, 50, 0 };
 const byte light_cold[3] = { 0, 0, 50 };
 const char* lightTypes[ ] = { "Green&Blue      ", "Green           ", "Blue            " };
+
+// Constants for lux sensor
+const tsl2591Gain_t gains[4] = { TSL2591_GAIN_LOW, TSL2591_GAIN_MED, TSL2591_GAIN_HIGH, TSL2591_GAIN_MAX};
+const char* gainTexts[] = { "Low-bright light", "Med             ", "High            ", "Max-dim light   " };
+const tsl2591IntegrationTime_t timings[6] = { TSL2591_INTEGRATIONTIME_100MS, TSL2591_INTEGRATIONTIME_200MS, TSL2591_INTEGRATIONTIME_300MS, TSL2591_INTEGRATIONTIME_400MS, TSL2591_INTEGRATIONTIME_500MS, TSL2591_INTEGRATIONTIME_600MS};
+const char* timingTexts[] = { "100ms bright lig", "200ms", "300ms", "400ms", "500ms", "600ms dim light" };
 
 //Times for print
 const byte timesPrint[] = {1, 2, 3, 4, 5, 7, 9, 11, 13, 15};
