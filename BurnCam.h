@@ -53,7 +53,7 @@ const tsl2591IntegrationTime_t timings[6] = { TSL2591_INTEGRATIONTIME_100MS, TSL
 const char* timingTexts[] = { "100ms bright lig", "200ms", "300ms", "400ms", "500ms", "600ms dim light" };
 
 //Times for print
-const byte timesPrint[] = {1, 2, 3, 4, 5, 7, 9, 11, 13, 15};
+const float timesPrint[] = {0.5, 1, 2, 3, 4, 5, 6, 7};
 
 const byte debounceTime = 100; //debounce time for push button.
 

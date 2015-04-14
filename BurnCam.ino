@@ -21,7 +21,6 @@
 #include <Wire.h>
 #include <math.h>
 #include <LiquidCrystal.h>
-#include <Button.h>
 #include <Adafruit_NeoPixel.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_TSL2591.h>
@@ -112,8 +111,7 @@ void loop()
 
 
 /* Menu
-  // 1 => open obturator
-  //   11 => close obturator => 2: take shot
+  // 1 => open/close obturator
   // 2 => Take shot
   //   21 => Auto => 3 : red light on
   //   22 => Manual
@@ -155,65 +153,34 @@ void showMenu(int menu, int previousMenu){
   
   lcd.setCursor(0, 1);
   
-  //1 : Open obturator
+  //1 : Open/close obturator
   if(menu == 1){
       //show under menu
-      lcd.print(">Open obturator");
+      lcd.print(stateObturator == 0 ? ">Open obturator " : ">Close obturator");
       //button management
       triggerState = digitalRead(PIN_TRIGGER);
       button1State = digitalRead(PIN_BUTTON1);
       while(triggerState != HIGH && button1State != HIGH){ //non blocking loop.
-        
         calcExpTimeAndShowInfos(NULL, NULL);
         delay(debounceTime);
         triggerState = digitalRead(PIN_TRIGGER);
         button1State = digitalRead(PIN_BUTTON1);
       }
       //trigger button.
-      if (triggerState == HIGH) {     
-        openObturator();
-        showMenu(11);
+      if (triggerState == HIGH) { 
+        if(stateObturator == 0){    
+          openObturator();
+          showMenu(1);
+        }else{
+          closeObturator();
+          showMenu(2); //go to menu take shot
+        }
+        
       }
-      //button 1 trigger
+      //button 1
       if (button1State == HIGH) {     
         showMenu(2);
       } 
-  }
-  //11 Close obturator
-  else if(menu == 11){
-      //show under menu
-      lcd.print(">Close ");
-      //show time running (non blocking).
-      float elapsedSecond = 0;
-      unsigned long currentMillis = millis();
-      unsigned long previousMillis = millis();
-      delay(debounceTime); //debounce time.
-      triggerState = digitalRead(PIN_TRIGGER);
-      while(triggerState != HIGH) {
-        if(currentMillis - previousMillis > 1000 * elapsedSecond){
-          lcd.setCursor(0, 1);
-          lcd.print(">Close ");
-          if(elapsedSecond < 10){
-            lcd.print(elapsedSecond);
-            lcd.print("s       ");
-          }else if(elapsedSecond < 60){
-            lcd.print(elapsedSecond);
-            lcd.print("s      ");
-          }else{ //mn management
-            int mn = (int)elapsedSecond / 60;
-            int sec = (int)elapsedSecond % 60;
-            lcd.print(mn);lcd.print(":");lcd.print(sec);
-          }
-          elapsedSecond += 1;
-        }
-        
-        delay(debounceTime); //debounce time.
-        triggerState = digitalRead(PIN_TRIGGER);
-        currentMillis = millis();
-      }
-      
-      closeObturator();
-      showMenu(2); //go to menu take shot
   }
   //2 : Take shot
   else if(menu == 2){
@@ -381,7 +348,7 @@ void showMenu(int menu, int previousMenu){
         lcd.setCursor(0, 1);
         lcd.print("Done!           ");
         delay(1000);
-        showMenu(4);
+        showMenu(3);//go to red light on
         
       }else{
         showMenu(42);
@@ -486,7 +453,7 @@ void showMenu(int menu, int previousMenu){
       //show under menu
       lcd.print(">10s            ");
       if(waitForButton() == PIN_TRIGGER){
-        showMenu(3, 51);
+        showMenu(21, 51);
     }else {
         showMenu(52);
     }
@@ -495,7 +462,7 @@ void showMenu(int menu, int previousMenu){
       //show under menu
       lcd.print(">30s            ");
       if(waitForButton() == PIN_TRIGGER){
-        showMenu(3, 52);
+        showMenu(21, 52);
       }else {
         showMenu(53);
       }
@@ -843,14 +810,15 @@ void calcExpTimeAndShowInfos(int focal, int iso)
   // Seconds management 
   else if ((exposureTimeInSeconds > 1.0f) && (exposureTimeInSeconds < 60.0f))
   {
-    lcd.print((int)exposureTimeInSeconds);
+    //lcd.print((int)exposureTimeInSeconds);
+    lcd.print(exposureTimeInSeconds);
     lcd.print("s");
     
   }
   // Fractional time management, we find the nearest standard shutter speed linked to exposure time value
   else if (exposureTimeInSeconds <= 1.0f)
   {
-    float shortestSpeedGap = 0.5f;//previous 1.0f
+    /*float shortestSpeedGap = 0.5f;//previous 1.0f
     for (int index = 0; index < length(shutterSpeeds); index++)
     {
       float shutterSpeed = shutterSpeeds[index];
@@ -864,7 +832,9 @@ void calcExpTimeAndShowInfos(int focal, int iso)
       }
     }
     
-    lcd.print(shutterSpeedTexts[shutterSpeedIndex]);
+    lcd.print(shutterSpeedTexts[shutterSpeedIndex]);*/
+    lcd.print(exposureTimeInSeconds);
+    lcd.print("s");
   }
 
   // We display the exposure value
